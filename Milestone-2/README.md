@@ -13,3 +13,10 @@ Tech Stack
 - Twilio Voice API
 - Python
 - Ngrok
+  # IRCTC-IVR-System/
+│
+├── main.py
+├── irctc.json
+├── requirements.txt
+├── README.md
+└── .env
