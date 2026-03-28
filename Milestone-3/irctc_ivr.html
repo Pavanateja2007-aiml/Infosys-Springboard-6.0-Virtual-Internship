@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IRCTC IVR Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #f8f9fb;
+    --surface: #ffffff;
+    --surface2: #f2f4f8;
+    --border: #e4e8f0;
+    --accent: #1a56db;
+    --accent-light: #e8effe;
+    --accent2: #0891b2;
+    --red: #ef4444;
+    --red-light: #fef2f2;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --orange: #ea580c;
+    --text: #111827;
+    --text2: #4b5563;
+    --text3: #9ca3af;
+    --shadow: 0 1px 3px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .logo-text { font-weight: 700; font-size: 14.5px; letter-spacing: -.3px; }
+  .logo-sub { font-size: 10.5px; color: var(--text3); }
+  .hsep { flex: 1; }
+  .lang-pills { display: flex; gap: 6px; }
+  .lpill {
+    padding: 4px 12px; border-radius: 20px; font-size: 11.5px; font-weight: 500;
+    background: var(--surface2); color: var(--text2); border: 1px solid var(--border);
+    cursor: pointer; transition: .15s;
+  }
+  .lpill.active { background: var(--accent-light); color: var(--accent); border-color: #c7d7fc; }
+  .lang-badge {
+    padding: 4px 12px; border-radius: 20px; font-size: 11.5px; font-weight: 600;
+    background: var(--accent-light); color: var(--accent); border: 1px solid #c7d7fc;
+  }
+
+  /* LAYOUT */
+  .layout {
+    display: grid;
+    grid-template-columns: 232px 1fr 210px;
+    flex: 1;
+    height: calc(100vh - 56px);
+    overflow: hidden;
+  }
+
+  /* LEFT */
+  .panel-left {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .status-strip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sdot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text3); flex-shrink: 0; transition: .3s;
+  }
+  .sdot.active { background: var(--green); box-shadow: 0 0 0 3px rgba(22,163,74,.15); }
+  .sdot.speaking { background: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.15); animation: blink 1s infinite; }
+  .sdot.listening { background: var(--orange); box-shadow: 0 0 0 3px rgba(234,88,12,.15); animation: blink .7s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .stext { font-size: 11.5px; color: var(--text2); font-weight: 500; }
+
+  .psec { padding: 16px; border-bottom: 1px solid var(--border); }
+  .plabel { font-size: 10px; font-weight: 600; letter-spacing: .7px; color: var(--text3); text-transform: uppercase; margin-bottom: 12px; }
+
+  /* Call btns */
+  .cbwrap { display: flex; gap: 8px; }
+  .cbtn {
+    flex: 1; padding: 10px 6px; border-radius: 9px; border: none;
+    font-family: inherit; font-weight: 600; font-size: 12.5px;
+    cursor: pointer; transition: .18s; display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .cbtn.start { background: var(--green); color: #fff; }
+  .cbtn.start:hover { background: #15803d; transform: translateY(-1px); }
+  .cbtn.end { background: var(--red); color: #fff; }
+  .cbtn.end:hover { background: #dc2626; transform: translateY(-1px); }
+  .cbtn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+  /* Keypad */
+  .digit-disp {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;
+    font-family: 'DM Mono', monospace; font-size: 17px; letter-spacing: 4px;
+    color: var(--text); min-height: 36px; text-align: center;
+  }
+  .kpad { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; }
+  .kkey {
+    aspect-ratio: 1; border: 1.5px solid var(--border); background: var(--surface);
+    border-radius: 9px; font-family: 'DM Mono', monospace;
+    font-size: 17px; font-weight: 500; cursor: pointer; transition: .13s;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text); position: relative; overflow: hidden; flex-direction: column;
+    gap: 0;
+  }
+  .kkey:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+  .kkey:active { transform: scale(.93); }
+  .ksub { font-size: 6.5px; color: var(--text3); font-family: 'DM Sans', sans-serif; letter-spacing: .4px; font-weight: 500; }
+  .submit-d {
+    width: 100%; margin-top: 8px; padding: 9px; border-radius: 8px; border: none;
+    background: var(--accent); color: #fff; font-family: inherit; font-weight: 600; font-size: 13px;
+    cursor: pointer; transition: .15s;
+  }
+  .submit-d:hover { background: #1e40af; }
+  .submit-d:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* Toggles */
+  .trow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+  .tlabel { font-size: 12px; color: var(--text2); }
+  .toggle {
+    width: 32px; height: 18px; background: var(--border); border-radius: 9px;
+    position: relative; cursor: pointer; transition: .2s; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: ''; position: absolute; width: 14px; height: 14px;
+    background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: .2s;
+  }
+  .toggle.on::after { left: 16px; }
+
+  /* CENTER */
+  .panel-center { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+
+  .chat-head {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;
+  }
+  .aav {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(135deg,var(--accent),var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; color: #fff;
+  }
+  .aname { font-weight: 700; font-size: 13.5px; }
+  .ameta { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .hbadges { display: flex; gap: 6px; margin-left: auto; }
+  .hbadge {
+    font-size: 10px; padding: 3px 9px; border-radius: 10px; font-weight: 600;
+    background: var(--surface2); color: var(--text2); border: 1px solid var(--border);
+  }
+  .hbadge.on { background: var(--green-light); color: var(--green); border-color: #bbf7d0; }
+
+  .chat-msgs {
+    flex: 1; overflow-y: auto; padding: 20px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .chat-msgs::-webkit-scrollbar { width: 4px; }
+  .chat-msgs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .mrow { display: flex; gap: 9px; max-width: 78%; animation: su .28s ease; }
+  @keyframes su { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
+  .mrow.agent { align-self: flex-start; }
+  .mrow.user { align-self: flex-end; flex-direction: row-reverse; }
+  .mav {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .mav.aav2 { background: linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; }
+  .mav.uav { background: var(--surface2); border: 1px solid var(--border); }
+  .mbub {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 13px; padding: 10px 13px;
+    font-size: 13px; line-height: 1.6; box-shadow: var(--shadow);
+  }
+  .mrow.user .mbub { background: var(--accent); color: #fff; border-color: transparent; }
+  .mlang { font-size: 10.5px; color: var(--text3); margin-bottom: 3px; display: block; font-weight: 500; }
+  .mrow.user .mlang { color: rgba(255,255,255,.6); }
+  .mhindi { color: var(--text2); font-size: 12.5px; margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border); }
+  .qa { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .qab {
+    padding: 4px 11px; border-radius: 7px; border: 1.5px solid var(--border);
+    background: var(--surface); color: var(--text2); font-family: inherit;
+    font-size: 11px; font-weight: 600; cursor: pointer; transition: .13s;
+  }
+  .qab:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+
+  /* Typing */
+  .typrow { display: flex; gap: 9px; align-self: flex-start; animation: su .28s ease; }
+  .typbub {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 13px; padding: 11px 16px;
+    display: flex; gap: 5px; align-items: center;
+  }
+  .td {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--text3);
+    animation: ta 1.2s infinite;
+  }
+  .td:nth-child(2){animation-delay:.2s} .td:nth-child(3){animation-delay:.4s}
+  @keyframes ta { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+  /* Welcome */
+  .wph {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; flex: 1; color: var(--text3); text-align: center; padding: 40px 20px;
+  }
+  .wph .wi { font-size: 44px; }
+  .wph h3 { font-size: 15px; color: var(--text2); font-weight: 600; }
+  .wph p { font-size: 12.5px; line-height: 1.65; }
+
+  /* Footer */
+  .chat-foot {
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 12px 16px; display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+  }
+  .cinput {
+    flex: 1; padding: 9px 13px; border-radius: 9px; border: 1.5px solid var(--border);
+    background: var(--surface2); font-family: inherit; font-size: 13px; color: var(--text);
+    outline: none; transition: .18s;
+  }
+  .cinput:focus { border-color: var(--accent); background: #fff; }
+  .cinput::placeholder { color: var(--text3); }
+  .cinput:disabled { opacity: .45; cursor: not-allowed; }
+  .micbtn {
+    width: 40px; height: 40px; border-radius: 9px; border: 1.5px solid var(--border);
+    background: var(--surface); cursor: pointer; transition: .18s;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+  }
+  .micbtn:hover { background: var(--accent-light); border-color: var(--accent); }
+  .micbtn.listening { background: var(--orange); border-color: var(--orange); animation: blink .7s infinite; }
+  .micbtn:disabled { opacity: .4; cursor: not-allowed; }
+  .sndbtn {
+    width: 40px; height: 40px; border-radius: 9px; border: none;
+    background: var(--accent); color: #fff; cursor: pointer; transition: .18s;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+  }
+  .sndbtn:hover { background: #1e40af; transform: translateY(-1px); }
+  .sndbtn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+  .tts-foot {
+    background: var(--surface2); border-top: 1px solid var(--border);
+    padding: 7px 16px; display: flex; align-items: center; gap: 6px;
+    flex-shrink: 0; font-size: 11.5px; color: var(--text3);
+  }
+
+  /* RIGHT */
+  .panel-right {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .scard {
+    margin: 12px; padding: 13px;
+    background: var(--surface2); border-radius: 11px;
+    border: 1px solid var(--border);
+  }
+  .sc-title { font-size: 9.5px; color: var(--text3); font-weight: 600; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 8px; }
+  .sc-val { font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'DM Mono', monospace; }
+  .sc-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .si-row { display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 5px; }
+  .si-row:last-child { margin-bottom: 0; }
+  .si-label { color: var(--text3); }
+  .si-val { font-weight: 600; font-family: 'DM Mono', monospace; }
+
+  .rplabel { padding: 0 12px; margin-bottom: 6px; font-size: 9.5px; font-weight: 600; letter-spacing: .6px; color: var(--text3); text-transform: uppercase; }
+  .flow-list { margin: 0 12px 12px; }
+  .fi { display: flex; gap: 9px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 11.5px; }
+  .fi:last-child { border-bottom: none; }
+  .fdot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); margin-top: 3px; flex-shrink: 0; transition: .3s; }
+  .fdot.done { background: var(--green); }
+  .fdot.cur { background: var(--accent); animation: blink 1s infinite; }
+  .fn { flex: 1; color: var(--text2); }
+  .fn.done { color: var(--text3); text-decoration: line-through; }
+  .fn.cur { color: var(--accent); font-weight: 600; }
+
+  .log-area {
+    flex: 1; margin: 0 12px 12px; overflow-y: auto;
+    background: var(--surface2); border-radius: 8px; border: 1px solid var(--border);
+    padding: 9px; font-family: 'DM Mono', monospace; font-size: 9.5px;
+    color: var(--text3); line-height: 1.75; max-height: 180px;
+  }
+  .log-area::-webkit-scrollbar { width: 3px; }
+  .le { display: block; }
+  .le.i { color: var(--accent); }
+  .le.e { color: var(--red); }
+  .le.ok { color: var(--green); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚆</div>
+    <div>
+      <div class="logo-text">IRCTC IVR Simulator</div>
+      <div class="logo-sub">Interactive Voice Response System</div>
+    </div>
+  </div>
+  <div class="hsep"></div>
+  <div class="lang-pills">
+    <div class="lpill active" id="lpEn" onclick="switchLang('en')">🇬🇧 English</div>
+    <div class="lpill" id="lpHi" onclick="switchLang('hi')">🇮🇳 हिन्दी</div>
+  </div>
+  <div class="lang-badge" id="lbadge">🌐 English Active</div>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="panel-left">
+    <div class="status-strip">
+      <div class="sdot" id="sdot"></div>
+      <div class="stext" id="stext">Idle — Press Call to start</div>
+    </div>
+
+    <div class="psec">
+      <div class="plabel">Call Controls</div>
+      <div class="cbwrap">
+        <button class="cbtn start" id="callBtn" onclick="startCall()">📞 Call</button>
+        <button class="cbtn end" id="endBtn" onclick="endCall()" disabled>🔴 End</button>
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="plabel">DTMF Keypad</div>
+      <div class="digit-disp" id="digitDisp">—</div>
+      <div class="kpad">
+        <button class="kkey" onclick="pressKey('1')">1</button>
+        <button class="kkey" onclick="pressKey('2')">2<span class="ksub">ABC</span></button>
+        <button class="kkey" onclick="pressKey('3')">3<span class="ksub">DEF</span></button>
+        <button class="kkey" onclick="pressKey('4')">4<span class="ksub">GHI</span></button>
+        <button class="kkey" onclick="pressKey('5')">5<span class="ksub">JKL</span></button>
+        <button class="kkey" onclick="pressKey('6')">6<span class="ksub">MNO</span></button>
+        <button class="kkey" onclick="pressKey('7')">7<span class="ksub">PQRS</span></button>
+        <button class="kkey" onclick="pressKey('8')">8<span class="ksub">TUV</span></button>
+        <button class="kkey" onclick="pressKey('9')">9<span class="ksub">WXYZ</span></button>
+        <button class="kkey" onclick="pressKey('*')">﹡</button>
+        <button class="kkey" onclick="pressKey('0')">0</button>
+        <button class="kkey" onclick="pressKey('#')">#</button>
+      </div>
+      <button class="submit-d" id="submitD" onclick="submitDigits()" disabled>⏎ Submit Input</button>
+    </div>
+
+    <div class="psec" style="flex:1">
+      <div class="plabel">Voice Options</div>
+      <div class="trow">
+        <span class="tlabel">🔊 Text-to-Speech</span>
+        <div class="toggle on" id="ttsT" onclick="toggleTTS()"></div>
+      </div>
+      <div class="trow">
+        <span class="tlabel">🎤 Speech-to-Text</span>
+        <div class="toggle on" id="sttT" onclick="toggleSTT()"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-top:6px;">
+        Use keypad for menu options. For PNR/train numbers, enter digits then press Submit.
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="panel-center">
+
+    <div class="chat-head">
+      <div class="aav">🤖</div>
+      <div>
+        <div class="aname">IRCTC AI Agent</div>
+        <div class="ameta">Multilingual · Voice &amp; Text · IVR</div>
+      </div>
+      <div class="hbadges">
+        <span class="hbadge" id="hb1">Idle</span>
+        <span class="hbadge" id="hb2">State: —</span>
+      </div>
+    </div>
+
+    <div class="chat-msgs" id="chatMsgs">
+      <div class="wph" id="wph">
+        <div class="wi">🚂</div>
+        <h3>IRCTC IVR System Ready</h3>
+        <p>Press <strong>📞 Call</strong> on the left panel<br/>to begin the interactive session.<br/><br/>Supports English &amp; Hindi with<br/>live Speech-to-Text &amp; Text-to-Speech.</p>
+      </div>
+    </div>
+
+    <div class="tts-foot" id="ttsFoot" style="display:none">
+      <span id="ttsStatus">🔊 Ready</span>
+    </div>
+
+    <div class="chat-foot">
+      <input class="cinput" id="cinput" placeholder="Type your response here…" disabled
+             onkeydown="if(event.key==='Enter')sendText()"/>
+      <button class="micbtn" id="micBtn" onclick="toggleMic()" disabled title="Click to speak">🎤</button>
+      <button class="sndbtn" id="sndBtn" onclick="sendText()" disabled>➤</button>
+    </div>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel-right">
+    <div class="scard">
+      <div class="sc-title">Current State</div>
+      <div class="sc-val" id="stateV">idle</div>
+      <div class="sc-sub" id="stateSub">—</div>
+    </div>
+
+    <div class="scard">
+      <div class="sc-title">Session Info</div>
+      <div class="si-row"><span class="si-label">Language</span><span class="si-val" id="siLang">—</span></div>
+      <div class="si-row"><span class="si-label">PNR</span><span class="si-val" id="siPNR">—</span></div>
+      <div class="si-row"><span class="si-label">Train No.</span><span class="si-val" id="siTrain">—</span></div>
+      <div class="si-row"><span class="si-label">Duration</span><span class="si-val" id="siDur">—</span></div>
+    </div>
+
+    <div class="rplabel">IVR Flow</div>
+    <div class="flow-list">
+      <div class="fi"><div class="fdot" id="fd-welcome"></div><div class="fn" id="fn-welcome">Welcome</div></div>
+      <div class="fi"><div class="fdot" id="fd-lang"></div><div class="fn" id="fn-lang">Language Select</div></div>
+      <div class="fi"><div class="fdot" id="fd-menu"></div><div class="fn" id="fn-menu">Main Menu</div></div>
+      <div class="fi"><div class="fdot" id="fd-action"></div><div class="fn" id="fn-action">Action</div></div>
+      <div class="fi"><div class="fdot" id="fd-input"></div><div class="fn" id="fn-input">User Input</div></div>
+      <div class="fi"><div class="fdot" id="fd-result"></div><div class="fn" id="fn-result">Result</div></div>
+    </div>
+
+    <div class="rplabel">Activity Log</div>
+    <div class="log-area" id="logArea"></div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────
+const DB = {
+  "1234567890": { status:"Confirmed", coach:"S4", seat:"32" },
+  "9876543210": { status:"Waitlisted", coach:"—", seat:"WL/12" },
+  "5551234567": { status:"Confirmed", coach:"B2", seat:"15" },
+  "12345": { name:"Rajdhani Express", departure:"06:00 AM", arrival:"02:30 PM" },
+  "22691": { name:"Rajdhani Express", departure:"04:45 PM", arrival:"10:15 AM" },
+  "12301": { name:"Howrah Rajdhani", departure:"05:00 PM", arrival:"09:55 AM" },
+  "16526": { name:"Kanyakumari Express", departure:"07:00 AM", arrival:"08:15 PM" },
+};
+
+// ─── STRINGS ────────────────────────────────────────────────────
+const S = {
+  en: {
+    welcome: "Welcome to Railway Information System.",
+    langPrompt: "Press 1 for English. Press 2 for Hindi.",
+    menu: "Press 1 for PNR Enquiry. Press 2 for Train Running Status. Press 3 for Train Schedule. Press 0 to Exit.",
+    pnrAsk: "Please enter your 10-digit PNR number using the keypad.",
+    trainAsk: "Please enter the 5-digit train number using the keypad.",
+    goodbye: "Thank you for using Railway Information System. Goodbye!",
+    invalid: "Invalid option. Please try again.",
+    noInput: "No input detected. Please try again.",
+    trainOn: "Your train is running on time as per schedule.",
+    hindiSoon: "Hindi language service will be available soon. Thank you.",
+    pnrNF: "Sorry, the PNR number was not found in our records.",
+    trainNF: "Train details are not available for this number.",
+    back: "Returning to main menu.",
+    ended: "Call ended. Thank you for using our service!",
+    enterPnr: "Enter 10-digit PNR via keypad or type below, then press Submit.",
+    enterTrain: "Enter 5-digit train number via keypad or type below, then press Submit.",
+  },
+  hi: {
+    welcome: "रेलवे सूचना प्रणाली में आपका स्वागत है।",
+    langPrompt: "अंग्रेजी के लिए 1 दबाएं। हिन्दी के लिए 2 दबाएं।",
+    menu: "पीएनआर पूछताछ के लिए 1 दबाएं। ट्रेन चलने की स्थिति के लिए 2 दबाएं। ट्रेन समय-सारणी के लिए 3 दबाएं। बाहर जाने के लिए 0 दबाएं।",
+    pnrAsk: "कृपया कीपैड से अपना 10 अंकों का पीएनआर नंबर दर्ज करें।",
+    trainAsk: "कृपया 5 अंकों का ट्रेन नंबर दर्ज करें।",
+    goodbye: "हमारी सेवा का उपयोग करने के लिए धन्यवाद। नमस्ते!",
+    invalid: "गलत विकल्प। कृपया पुनः प्रयास करें।",
+    noInput: "कोई इनपुट नहीं मिला। कृपया पुनः प्रयास करें।",
+    trainOn: "आपकी ट्रेन समय पर चल रही है।",
+    hindiSoon: "हिन्दी भाषा सेवा जल्द ही उपलब्ध होगी। धन्यवाद।",
+    pnrNF: "माफ़ करें, पीएनआर हमारे रिकॉर्ड में नहीं मिला।",
+    trainNF: "इस नंबर की ट्रेन जानकारी उपलब्ध नहीं है।",
+    back: "मुख्य मेनू पर वापस आ रहे हैं।",
+    ended: "कॉल समाप्त हो गई। धन्यवाद!",
+    enterPnr: "कीपैड से 10 अंकों का PNR दर्ज करें या नीचे टाइप करें।",
+    enterTrain: "कीपैड से 5 अंकों का ट्रेन नंबर दर्ज करें।",
+  }
+};
+
+// ─── STATE ──────────────────────────────────────────────────────
+const st = {
+  phase: 'idle',
+  lang: 'en',
+  active: false,
+  digits: '',
+  tts: true,
+  stt: true,
+  start: null,
+  timer: null,
+  recognition: null,
+  micOn: false,
+  synth: window.speechSynthesis,
+};
+
+// ─── HELPERS ────────────────────────────────────────────────────
+const t = k => S[st.lang][k] || S.en[k];
+
+function log(msg, type='') {
+  const a = document.getElementById('logArea');
+  const e = document.createElement('span');
+  e.className = 'le ' + type;
+  const ts = new Date().toLocaleTimeString('en',{hour12:false});
+  e.textContent = `[${ts}] ${msg}\n`;
+  a.appendChild(e); a.scrollTop = a.scrollHeight;
+}
+
+function setStatus(txt, cls='') {
+  document.getElementById('stext').textContent = txt;
+  document.getElementById('sdot').className = 'sdot ' + cls;
+}
+
+function setPhaseUI(v, sub='') {
+  document.getElementById('stateV').textContent = v;
+  document.getElementById('stateSub').textContent = sub;
+}
+
+function flowStep(step) {
+  const all = ['welcome','lang','menu','action','input','result'];
+  const idx = all.indexOf(step);
+  all.forEach((s,i) => {
+    const d = document.getElementById('fd-'+s);
+    const n = document.getElementById('fn-'+s);
+    if(!d) return;
+    if(i<idx){ d.className='fdot done'; n.className='fn done'; }
+    else if(i===idx){ d.className='fdot cur'; n.className='fn cur'; }
+    else{ d.className='fdot'; n.className='fn'; }
+  });
+}
+
+// ─── MESSAGES ───────────────────────────────────────────────────
+function addMsg(text, isUser=false, hiText='', actions=null) {
+  const ph = document.getElementById('wph');
+  if(ph) ph.remove();
+  const box = document.getElementById('chatMsgs');
+
+  const row = document.createElement('div');
+  row.className = 'mrow ' + (isUser?'user':'agent');
+
+  const av = document.createElement('div');
+  av.className = 'mav ' + (isUser?'uav':'aav2');
+  av.textContent = isUser ? '👤' : '🤖';
+
+  const bub = document.createElement('div');
+  bub.className = 'mbub';
+
+  if(!isUser) {
+    const lang = document.createElement('span');
+    lang.className = 'mlang';
+    lang.textContent = st.lang==='hi' ? '🇮🇳 हिन्दी' : '🇬🇧 English';
+    bub.appendChild(lang);
+  }
+
+  const main = document.createElement('div');
+  main.textContent = text;
+  bub.appendChild(main);
+
+  if(!isUser && hiText) {
+    const hi = document.createElement('div');
+    hi.className = 'mhindi';
+    hi.textContent = hiText;
+    bub.appendChild(hi);
+  }
+
+  if(actions && actions.length) {
+    const qa = document.createElement('div');
+    qa.className = 'qa';
+    actions.forEach(a => {
+      const b = document.createElement('button');
+      b.className = 'qab'; b.textContent = a.label;
+      b.onclick = a.fn; qa.appendChild(b);
+    });
+    bub.appendChild(qa);
+  }
+
+  row.appendChild(av); row.appendChild(bub);
+  box.appendChild(row);
+  box.scrollTop = box.scrollHeight;
+  return bub;
+}
+
+let typingEl = null;
+function showTyping() {
+  removeTyping();
+  const box = document.getElementById('chatMsgs');
+  const row = document.createElement('div');
+  row.className = 'typrow';
+  const av = document.createElement('div');
+  av.className = 'mav aav2'; av.textContent = '🤖';
+  const bub = document.createElement('div'); bub.className = 'typbub';
+  [0,1,2].forEach(()=>{ const d=document.createElement('div'); d.className='td'; bub.appendChild(d); });
+  row.appendChild(av); row.appendChild(bub);
+  box.appendChild(row); box.scrollTop = box.scrollHeight;
+  typingEl = row;
+}
+function removeTyping() { if(typingEl){ typingEl.remove(); typingEl=null; } }
+
+// ─── TTS ────────────────────────────────────────────────────────
+function speak(text, cb) {
+  if(!st.tts){ if(cb) setTimeout(cb,200); return; }
+  st.synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = st.lang==='hi' ? 'hi-IN' : 'en-IN';
+  u.rate = 0.94; u.pitch = 1.05;
+  setStatus('Agent speaking…','speaking');
+  document.getElementById('ttsStatus').textContent = '🔊 Speaking…';
+  u.onend = ()=>{ setStatus('Active','active'); document.getElementById('ttsStatus').textContent='🔊 Ready'; if(cb)cb(); };
+  u.onerror = ()=>{ if(cb)cb(); };
+  st.synth.speak(u);
+}
+function stopSpeak(){ st.synth.cancel(); }
+
+// ─── STT ────────────────────────────────────────────────────────
+function initRec() {
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!R){ log('STT not supported','e'); return; }
+  st.recognition = new R();
+  st.recognition.lang = st.lang==='hi'?'hi-IN':'en-IN';
+  st.recognition.interimResults = false;
+  st.recognition.onresult = e => {
+    const txt = e.results[0][0].transcript.trim();
+    log(`STT: "${txt}"`,'i');
+    addMsg(txt, true);
+    handleText(txt);
+    stopMic();
+  };
+  st.recognition.onerror = ()=>stopMic();
+  st.recognition.onend = ()=>stopMic();
+}
+
+function toggleMic() {
+  if(!st.stt || !st.active) return;
+  if(st.micOn){ stopMic(); return; }
+  if(!st.recognition) initRec();
+  else st.recognition.lang = st.lang==='hi'?'hi-IN':'en-IN';
+  try {
+    st.recognition.start();
+    st.micOn = true;
+    document.getElementById('micBtn').className = 'micbtn listening';
+    setStatus('Listening…','listening');
+    document.getElementById('ttsStatus').textContent = '🎤 Listening…';
+    log('Mic on','i');
+  } catch(e){ log('Mic error: '+e.message,'e'); }
+}
+function stopMic() {
+  st.micOn = false;
+  document.getElementById('micBtn').className = 'micbtn';
+  if(st.recognition){ try{ st.recognition.stop(); }catch(e){} }
+  if(st.active) setStatus('Active','active');
+  document.getElementById('ttsStatus').textContent = '🔊 Ready';
+}
+
+// ─── CALL FLOW ──────────────────────────────────────────────────
+function startCall() {
+  if(st.active) return;
+  st.active=true; st.start=Date.now(); st.digits=''; st.phase='welcome'; st.lang='en';
+  updateLangUI('en');
+
+  document.getElementById('callBtn').disabled=true;
+  document.getElementById('endBtn').disabled=false;
+  document.getElementById('cinput').disabled=false;
+  document.getElementById('sndBtn').disabled=false;
+  document.getElementById('micBtn').disabled=false;
+  document.getElementById('submitD').disabled=false;
+  document.getElementById('ttsFoot').style.display='flex';
+  document.getElementById('hb1').className='hbadge on'; document.getElementById('hb1').textContent='Live';
+
+  setStatus('Connected','active');
+  log('Call started','ok');
+  setPhaseUI('welcome','Greeting');
+  flowStep('welcome');
+
+  st.timer = setInterval(()=>{
+    const s=Math.floor((Date.now()-st.start)/1000);
+    document.getElementById('siDur').textContent=`${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+  },1000);
+
+  // Bilingual welcome
+  const wmsg = S.en.welcome + ' ' + S.en.langPrompt;
+  addMsg(S.en.welcome, false, S.hi.welcome);
+  setTimeout(()=>{
+    showTyping();
+    setTimeout(()=>{
+      removeTyping();
+      addMsg(S.en.langPrompt, false, S.hi.langPrompt, [
+        {label:'1 · English', fn:()=>handleKey('1')},
+        {label:'2 · हिन्दी', fn:()=>handleKey('2')},
+      ]);
+      speak(wmsg);
+      st.phase='lang';
+      setPhaseUI('lang','Select language');
+      flowStep('lang');
+      log('Phase: lang');
+    },700);
+  },500);
+}
+
+function endCall() {
+  if(!st.active) return;
+  st.active=false;
+  stopSpeak(); stopMic(); clearInterval(st.timer);
+  document.getElementById('callBtn').disabled=false;
+  document.getElementById('endBtn').disabled=true;
+  document.getElementById('cinput').disabled=true;
+  document.getElementById('sndBtn').disabled=true;
+  document.getElementById('micBtn').disabled=true;
+  document.getElementById('submitD').disabled=true;
+  document.getElementById('hb1').className='hbadge'; document.getElementById('hb1').textContent='Idle';
+  document.getElementById('hb2').textContent='State: —';
+  agentSay(t('ended'), null);
+  speak(t('ended'));
+  setStatus('Ended','');
+  setPhaseUI('idle','');
+  log('Call ended','ok');
+  st.phase='idle'; st.digits='';
+  document.getElementById('digitDisp').textContent='—';
+}
+
+// ─── LANG ───────────────────────────────────────────────────────
+function switchLang(lang) {
+  st.lang=lang;
+  updateLangUI(lang);
+  if(st.recognition) st.recognition.lang=lang==='hi'?'hi-IN':'en-IN';
+  log('Lang: '+lang,'i');
+}
+function updateLangUI(lang) {
+  document.getElementById('lpEn').className='lpill'+(lang==='en'?' active':'');
+  document.getElementById('lpHi').className='lpill'+(lang==='hi'?' active':'');
+  document.getElementById('lbadge').textContent=lang==='hi'?'🌐 हिन्दी Active':'🌐 English Active';
+  document.getElementById('siLang').textContent=lang==='hi'?'Hi':'En';
+}
+
+// ─── KEYPAD ─────────────────────────────────────────────────────
+function pressKey(k) {
+  if(!st.active) return;
+  const multi = ['pnr','train'].includes(st.phase);
+  if(multi) {
+    st.digits+=k;
+    document.getElementById('digitDisp').textContent=st.digits||'—';
+  } else {
+    addMsg('Pressed: '+k, true);
+    handleKey(k);
+    setTimeout(()=>{ document.getElementById('digitDisp').textContent='—'; },600);
+  }
+}
+
+function submitDigits() {
+  if(!st.active || !st.digits) return;
+  const d=st.digits; st.digits='';
+  document.getElementById('digitDisp').textContent='—';
+  addMsg(d, true);
+  handleText(d);
+}
+
+// ─── TEXT INPUT ─────────────────────────────────────────────────
+function sendText() {
+  const inp=document.getElementById('cinput');
+  const v=inp.value.trim();
+  if(!v||!st.active) return;
+  inp.value='';
+  addMsg(v, true);
+  handleText(v);
+}
+
+function handleText(text) {
+  const digs = text.replace(/\D/g,'');
+  if(st.phase==='lang') {
+    if(/\b(1|one|english)\b/i.test(text)) handleKey('1');
+    else if(/\b(2|two|hindi|हिन्दी|हिंदी)\b/i.test(text)) handleKey('2');
+    else if(digs) handleKey(digs[0]);
+    else agentSay(t('invalid'), ()=>repromptLang());
+  } else if(st.phase==='menu') {
+    if(/\b(1|one|pnr)\b/i.test(text)) handleKey('1');
+    else if(/\b(2|two|running|status)\b/i.test(text)) handleKey('2');
+    else if(/\b(3|three|schedule|train)\b/i.test(text)) handleKey('3');
+    else if(/\b(0|zero|exit|bye|goodbye)\b/i.test(text)) handleKey('0');
+    else if(digs) handleKey(digs[0]);
+    else agentSay(t('invalid'), showMenu);
+  } else if(st.phase==='pnr') {
+    if(digs.length>=10) doPNR(digs.slice(0,10));
+    else agentSay(t('pnrAsk'));
+  } else if(st.phase==='train') {
+    if(digs.length>=5) doTrain(digs.slice(0,5));
+    else agentSay(t('trainAsk'));
+  }
+}
+
+function handleKey(k) {
+  if(st.phase==='lang') {
+    if(k==='1'){ switchLang('en'); agentSay('English selected.', showMenu); }
+    else if(k==='2'){ switchLang('hi'); agentSay(t('hindiSoon'), ()=>{ speak(t('hindiSoon')); setTimeout(endCall,2000); }); }
+    else agentSay(t('invalid'), ()=>repromptLang());
+  } else if(st.phase==='menu') {
+    if(k==='1') goPNR();
+    else if(k==='2') goRunning();
+    else if(k==='3') goTrain();
+    else if(k==='0') agentSay(t('goodbye'), ()=>{ speak(t('goodbye')); setTimeout(endCall,1500); });
+    else agentSay(t('invalid'), showMenu);
+  }
+}
+
+// ─── AGENT SPEAK ────────────────────────────────────────────────
+function agentSay(text, cb) {
+  stopSpeak();
+  showTyping();
+  setTimeout(()=>{
+    removeTyping();
+    addMsg(text, false);
+    speak(text, cb);
+    log('Agent: '+text.slice(0,55));
+  }, 550);
+}
+
+function repromptLang() {
+  addMsg(t('langPrompt'), false, st.lang==='en'?S.hi.langPrompt:'', [
+    {label:'1 · English', fn:()=>handleKey('1')},
+    {label:'2 · हिन्दी', fn:()=>handleKey('2')},
+  ]);
+  speak(t('langPrompt'));
+}
+
+function showMenu() {
+  st.phase='menu';
+  setPhaseUI('menu','Awaiting option');
+  flowStep('menu');
+  document.getElementById('hb2').textContent='State: Menu';
+  document.getElementById('cinput').placeholder='Type or press 1, 2, 3 or 0…';
+  log('Phase: main menu');
+
+  agentSay(t('menu'), null);
+  setTimeout(()=>{
+    const box=document.getElementById('chatMsgs');
+    const last=box.lastElementChild?.querySelector('.mbub');
+    if(last && !last.querySelector('.qa')) {
+      const qa=document.createElement('div'); qa.className='qa';
+      [
+        {label:'1 · PNR Enquiry', fn:()=>goPNR()},
+        {label:'2 · Running Status', fn:()=>goRunning()},
+        {label:'3 · Train Schedule', fn:()=>goTrain()},
+        {label:'0 · Exit', fn:()=>handleKey('0')},
+      ].forEach(a=>{ const b=document.createElement('button'); b.className='qab'; b.textContent=a.label; b.onclick=a.fn; qa.appendChild(b); });
+      last.appendChild(qa);
+    }
+  }, 650);
+}
+
+function goPNR() {
+  st.phase='pnr';
+  setPhaseUI('pnr','Awaiting PNR');
+  flowStep('input');
+  document.getElementById('hb2').textContent='State: PNR';
+  document.getElementById('cinput').placeholder='Enter 10-digit PNR…';
+  log('Phase: PNR','i');
+  agentSay(t('pnrAsk'));
+}
+
+function goRunning() {
+  flowStep('action');
+  document.getElementById('hb2').textContent='State: Running';
+  agentSay(t('trainOn'), ()=>setTimeout(showMenu,1100));
+}
+
+function goTrain() {
+  st.phase='train';
+  setPhaseUI('train','Awaiting Train No.');
+  flowStep('input');
+  document.getElementById('hb2').textContent='State: Train';
+  document.getElementById('cinput').placeholder='Enter 5-digit train number…';
+  log('Phase: Train Schedule','i');
+  agentSay(t('trainAsk'));
+}
+
+function doPNR(pnr) {
+  document.getElementById('siPNR').textContent=pnr;
+  flowStep('result');
+  log('PNR: '+pnr,'i');
+  const r=DB[pnr];
+  let msg;
+  if(r) {
+    msg=`PNR ${pnr}: Status is ${r.status}. Coach ${r.coach}, Seat ${r.seat}.`;
+    if(st.lang==='hi') msg+=` | पीएनआर ${pnr}: स्थिति ${r.status}।`;
+    log('Found: '+r.status,'ok');
+  } else { msg=t('pnrNF'); log('PNR not found','e'); }
+  agentSay(msg, ()=>{ st.phase='menu'; document.getElementById('cinput').placeholder='Type your response…'; setTimeout(showMenu,1000); });
+}
+
+function doTrain(num) {
+  document.getElementById('siTrain').textContent=num;
+  flowStep('result');
+  log('Train: '+num,'i');
+  const r=DB[num];
+  let msg;
+  if(r) {
+    msg=`${r.name} (${num}): Departs at ${r.departure}, arrives at ${r.arrival}.`;
+    if(st.lang==='hi') msg+=` | ${r.name}: प्रस्थान ${r.departure}, आगमन ${r.arrival}।`;
+    log('Found: '+r.name,'ok');
+  } else { msg=t('trainNF'); log('Train not found','e'); }
+  agentSay(msg, ()=>{ st.phase='menu'; document.getElementById('cinput').placeholder='Type your response…'; setTimeout(showMenu,1000); });
+}
+
+// ─── TOGGLES ────────────────────────────────────────────────────
+function toggleTTS() {
+  st.tts=!st.tts;
+  document.getElementById('ttsT').className='toggle'+(st.tts?' on':'');
+  if(!st.tts) st.synth.cancel();
+  log('TTS: '+(st.tts?'on':'off'),'i');
+}
+function toggleSTT() {
+  st.stt=!st.stt;
+  document.getElementById('sttT').className='toggle'+(st.stt?' on':'');
+  log('STT: '+(st.stt?'on':'off'),'i');
+}
+
+// ─── KEYBOARD ───────────────────────────────────────────────────
+document.addEventListener('keydown', e=>{
+  if(!st.active || document.activeElement.tagName==='INPUT') return;
+  if('0123456789*#'.includes(e.key)) pressKey(e.key);
+});
+
+// Init
+log('IVR Simulator ready','ok');
+log('Press Call to begin session','i');
+</script>
+</body>
+</html>
