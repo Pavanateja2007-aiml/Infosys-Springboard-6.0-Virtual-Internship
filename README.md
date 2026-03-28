@@ -104,10 +104,10 @@ Executed comprehensive unit, integration, performance, and end-to-end testing, f
 
 | Test Type        | File                   | Status  |
 |------------------|------------------------|---------|
-| Unit Tests       | `test_unit.py`         | ✅ Pass |
-| Integration Tests| `test_integration.py`  | ✅ Pass |
-| Performance Tests| `test_performance.py`  | ✅ Pass |
-| End-to-End Tests | `test_e2e.py`          | ✅ Pass |
+| Unit Tests       | `UNIT_TEST.py`         | ✅ Pass |
+| Integration Tests| `INTEGRATION_TEST.py`  | ✅ Pass |
+| Performance Tests| `PERFORMANCE_TEST.py`  | ✅ Pass |
+| End-to-End Tests | `E2E_TEST.py`          | ✅ Pass |
 
 ---
 
