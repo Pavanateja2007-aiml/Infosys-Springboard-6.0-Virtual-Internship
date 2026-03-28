@@ -18,6 +18,14 @@ Traditional IVR systems operate on rigid, menu-driven workflows that limit flexi
 Instead of replacing the entire legacy infrastructure, the solution leverages a **middleware-based integration layer** to extend current VXML assets with AI capabilities — ensuring cost efficiency, reduced redevelopment effort, and a smooth migration path.
 
 ---
+## 👥 Author & Mentor
+
+| Role   | Name             | Contact                                             |
+|--------|------------------|-----------------------------------------------------|
+| Intern | V.V.M.PAVANATEJA | 🔗 [GitHub](https://github.com/Pavanateja2007-aiml) |
+| Mentor | Saadhana         | 📧 springboardmentor564@gmail.com |
+
+> This project was built under the guidance of **Saadhana** as part of the Infosys Springboard 6.0 Virtual Internship — AI/ML Track.
 
 ## 🗂️ Project Structure
 ```
