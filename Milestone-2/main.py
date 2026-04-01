@@ -278,4 +278,4 @@ async def get_schedule(request: Request):
 
     except Exception as e:
         logging.error(f"Schedule error: {e}")
-        return {"error": str(e)}
+        return {"error ok": str(e)}
